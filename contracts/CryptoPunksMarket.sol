@@ -1,4 +1,4 @@
-pragma solidity ^0.4.8;
+pragma solidity ^0.5.0;
 contract CryptoPunksMarket {
 
     // You can use this hash to verify the image file containing all the punks
@@ -56,7 +56,7 @@ contract CryptoPunksMarket {
     event PunkNoLongerForSale(uint indexed punkIndex);
 
     /* Initializes contract with initial supply tokens to the creator of the contract */
-    function CryptoPunksMarket() payable {
+    constructor() public payable {
         //        balanceOf[msg.sender] = initialSupply;              // Give the creator all initial tokens
         owner = msg.sender;
         totalSupply = 10000;                        // Update total supply
@@ -66,125 +66,125 @@ contract CryptoPunksMarket {
         decimals = 0;                                       // Amount of decimals for display purposes
     }
 
-    function setInitialOwner(address to, uint punkIndex) {
-        if (msg.sender != owner) throw;
-        if (allPunksAssigned) throw;
-        if (punkIndex >= 10000) throw;
+    function setInitialOwner(address to, uint punkIndex) public {
+        if (msg.sender != owner) revert();
+        if (allPunksAssigned) revert();
+        if (punkIndex >= 10000) revert();
         if (punkIndexToAddress[punkIndex] != to) {
-            if (punkIndexToAddress[punkIndex] != 0x0) {
+            if (punkIndexToAddress[punkIndex] != address(0)) {
                 balanceOf[punkIndexToAddress[punkIndex]]--;
             } else {
                 punksRemainingToAssign--;
             }
             punkIndexToAddress[punkIndex] = to;
             balanceOf[to]++;
-            Assign(to, punkIndex);
+            emit Assign(to, punkIndex);
         }
     }
 
-    function setInitialOwners(address[] addresses, uint[] indices) {
-        if (msg.sender != owner) throw;
+    function setInitialOwners(address[] memory addresses, uint[] memory indices) public {
+        if (msg.sender != owner) revert();
         uint n = addresses.length;
         for (uint i = 0; i < n; i++) {
             setInitialOwner(addresses[i], indices[i]);
         }
     }
 
-    function allInitialOwnersAssigned() {
-        if (msg.sender != owner) throw;
+    function allInitialOwnersAssigned() public {
+        if (msg.sender != owner) revert();
         allPunksAssigned = true;
     }
 
-    function getPunk(uint punkIndex) {
-        if (!allPunksAssigned) throw;
-        if (punksRemainingToAssign == 0) throw;
-        if (punkIndexToAddress[punkIndex] != 0x0) throw;
-        if (punkIndex >= 10000) throw;
+    function getPunk(uint punkIndex) public {
+        if (!allPunksAssigned) revert();
+        if (punksRemainingToAssign == 0) revert();
+        if (punkIndexToAddress[punkIndex] != address(0)) revert();
+        if (punkIndex >= 10000) revert();
         punkIndexToAddress[punkIndex] = msg.sender;
         balanceOf[msg.sender]++;
         punksRemainingToAssign--;
-        Assign(msg.sender, punkIndex);
+        emit Assign(msg.sender, punkIndex);
     }
 
     // Transfer ownership of a punk to another user without requiring payment
-    function transferPunk(address to, uint punkIndex) {
-        if (!allPunksAssigned) throw;
-        if (punkIndexToAddress[punkIndex] != msg.sender) throw;
-        if (punkIndex >= 10000) throw;
+    function transferPunk(address to, uint punkIndex) public {
+        if (!allPunksAssigned) revert();
+        if (punkIndexToAddress[punkIndex] != msg.sender) revert();
+        if (punkIndex >= 10000) revert();
         if (punksOfferedForSale[punkIndex].isForSale) {
             punkNoLongerForSale(punkIndex);
         }
         punkIndexToAddress[punkIndex] = to;
         balanceOf[msg.sender]--;
         balanceOf[to]++;
-        Transfer(msg.sender, to, 1);
-        PunkTransfer(msg.sender, to, punkIndex);
+        emit Transfer(msg.sender, to, 1);
+        emit PunkTransfer(msg.sender, to, punkIndex);
         // Check for the case where there is a bid from the new owner and refund it.
         // Any other bid can stay in place.
-        Bid bid = punkBids[punkIndex];
+        Bid storage bid = punkBids[punkIndex];
         if (bid.bidder == to) {
             // Kill bid and refund value
             pendingWithdrawals[to] += bid.value;
-            punkBids[punkIndex] = Bid(false, punkIndex, 0x0, 0);
+            punkBids[punkIndex] = Bid(false, punkIndex, address(0), 0);
         }
     }
 
-    function punkNoLongerForSale(uint punkIndex) {
-        if (!allPunksAssigned) throw;
-        if (punkIndexToAddress[punkIndex] != msg.sender) throw;
-        if (punkIndex >= 10000) throw;
-        punksOfferedForSale[punkIndex] = Offer(false, punkIndex, msg.sender, 0, 0x0);
-        PunkNoLongerForSale(punkIndex);
+    function punkNoLongerForSale(uint punkIndex) public {
+        if (!allPunksAssigned) revert();
+        if (punkIndexToAddress[punkIndex] != msg.sender) revert();
+        if (punkIndex >= 10000) revert();
+        punksOfferedForSale[punkIndex] = Offer(false, punkIndex, msg.sender, 0, address(0));
+        emit PunkNoLongerForSale(punkIndex);
     }
 
-    function offerPunkForSale(uint punkIndex, uint minSalePriceInWei) {
-        if (!allPunksAssigned) throw;
-        if (punkIndexToAddress[punkIndex] != msg.sender) throw;
-        if (punkIndex >= 10000) throw;
-        punksOfferedForSale[punkIndex] = Offer(true, punkIndex, msg.sender, minSalePriceInWei, 0x0);
-        PunkOffered(punkIndex, minSalePriceInWei, 0x0);
+    function offerPunkForSale(uint punkIndex, uint minSalePriceInWei) public {
+        if (!allPunksAssigned) revert();
+        if (punkIndexToAddress[punkIndex] != msg.sender) revert();
+        if (punkIndex >= 10000) revert();
+        punksOfferedForSale[punkIndex] = Offer(true, punkIndex, msg.sender, minSalePriceInWei, address(0));
+        emit PunkOffered(punkIndex, minSalePriceInWei, address(0));
     }
 
-    function offerPunkForSaleToAddress(uint punkIndex, uint minSalePriceInWei, address toAddress) {
-        if (!allPunksAssigned) throw;
-        if (punkIndexToAddress[punkIndex] != msg.sender) throw;
-        if (punkIndex >= 10000) throw;
+    function offerPunkForSaleToAddress(uint punkIndex, uint minSalePriceInWei, address toAddress) public {
+        if (!allPunksAssigned) revert();
+        if (punkIndexToAddress[punkIndex] != msg.sender) revert();
+        if (punkIndex >= 10000) revert();
         punksOfferedForSale[punkIndex] = Offer(true, punkIndex, msg.sender, minSalePriceInWei, toAddress);
-        PunkOffered(punkIndex, minSalePriceInWei, toAddress);
+        emit PunkOffered(punkIndex, minSalePriceInWei, toAddress);
     }
 
-    function buyPunk(uint punkIndex) payable {
-        if (!allPunksAssigned) throw;
-        Offer offer = punksOfferedForSale[punkIndex];
-        if (punkIndex >= 10000) throw;
-        if (!offer.isForSale) throw;                // punk not actually for sale
-        if (offer.onlySellTo != 0x0 && offer.onlySellTo != msg.sender) throw;  // punk not supposed to be sold to this user
-        if (msg.value < offer.minValue) throw;      // Didn't send enough ETH
-        if (offer.seller != punkIndexToAddress[punkIndex]) throw; // Seller no longer owner of punk
+    function buyPunk(uint punkIndex) public payable {
+        if (!allPunksAssigned) revert();
+        Offer storage offer = punksOfferedForSale[punkIndex];
+        if (punkIndex >= 10000) revert();
+        if (!offer.isForSale) revert();                // punk not actually for sale
+        if (offer.onlySellTo != address(0) && offer.onlySellTo != msg.sender) revert();  // punk not supposed to be sold to this user
+        if (msg.value < offer.minValue) revert();      // Didn't send enough ETH
+        if (offer.seller != punkIndexToAddress[punkIndex]) revert(); // Seller no longer owner of punk
 
         address seller = offer.seller;
 
         punkIndexToAddress[punkIndex] = msg.sender;
         balanceOf[seller]--;
         balanceOf[msg.sender]++;
-        Transfer(seller, msg.sender, 1);
+        emit Transfer(seller, msg.sender, 1);
 
         punkNoLongerForSale(punkIndex);
         pendingWithdrawals[seller] += msg.value;
-        PunkBought(punkIndex, msg.value, seller, msg.sender);
+        emit PunkBought(punkIndex, msg.value, seller, msg.sender);
 
         // Check for the case where there is a bid from the new owner and refund it.
         // Any other bid can stay in place.
-        Bid bid = punkBids[punkIndex];
+        Bid storage bid = punkBids[punkIndex];
         if (bid.bidder == msg.sender) {
             // Kill bid and refund value
             pendingWithdrawals[msg.sender] += bid.value;
-            punkBids[punkIndex] = Bid(false, punkIndex, 0x0, 0);
+            punkBids[punkIndex] = Bid(false, punkIndex, address(0), 0);
         }
     }
 
-    function withdraw() {
-        if (!allPunksAssigned) throw;
+    function withdraw() public {
+        if (!allPunksAssigned) revert();
         uint amount = pendingWithdrawals[msg.sender];
         // Remember to zero the pending refund before
         // sending to prevent re-entrancy attacks
@@ -192,53 +192,53 @@ contract CryptoPunksMarket {
         msg.sender.transfer(amount);
     }
 
-    function enterBidForPunk(uint punkIndex) payable {
-        if (punkIndex >= 10000) throw;
-        if (!allPunksAssigned) throw;                
-        if (punkIndexToAddress[punkIndex] == 0x0) throw;
-        if (punkIndexToAddress[punkIndex] == msg.sender) throw;
-        if (msg.value == 0) throw;
-        Bid existing = punkBids[punkIndex];
-        if (msg.value <= existing.value) throw;
+    function enterBidForPunk(uint punkIndex) public payable {
+        if (punkIndex >= 10000) revert();
+        if (!allPunksAssigned) revert();                
+        if (punkIndexToAddress[punkIndex] == address(0)) revert();
+        if (punkIndexToAddress[punkIndex] == msg.sender) revert();
+        if (msg.value == 0) revert();
+        Bid storage existing = punkBids[punkIndex];
+        if (msg.value <= existing.value) revert();
         if (existing.value > 0) {
             // Refund the failing bid
             pendingWithdrawals[existing.bidder] += existing.value;
         }
         punkBids[punkIndex] = Bid(true, punkIndex, msg.sender, msg.value);
-        PunkBidEntered(punkIndex, msg.value, msg.sender);
+        emit PunkBidEntered(punkIndex, msg.value, msg.sender);
     }
 
-    function acceptBidForPunk(uint punkIndex, uint minPrice) {
-        if (punkIndex >= 10000) throw;
-        if (!allPunksAssigned) throw;                
-        if (punkIndexToAddress[punkIndex] != msg.sender) throw;
+    function acceptBidForPunk(uint punkIndex, uint minPrice) public {
+        if (punkIndex >= 10000) revert();
+        if (!allPunksAssigned) revert();                
+        if (punkIndexToAddress[punkIndex] != msg.sender) revert();
         address seller = msg.sender;
-        Bid bid = punkBids[punkIndex];
-        if (bid.value == 0) throw;
-        if (bid.value < minPrice) throw;
+        Bid storage bid = punkBids[punkIndex];
+        if (bid.value == 0) revert();
+        if (bid.value < minPrice) revert();
 
         punkIndexToAddress[punkIndex] = bid.bidder;
         balanceOf[seller]--;
         balanceOf[bid.bidder]++;
-        Transfer(seller, bid.bidder, 1);
+        emit Transfer(seller, bid.bidder, 1);
 
-        punksOfferedForSale[punkIndex] = Offer(false, punkIndex, bid.bidder, 0, 0x0);
+        punksOfferedForSale[punkIndex] = Offer(false, punkIndex, bid.bidder, 0, address(0));
         uint amount = bid.value;
-        punkBids[punkIndex] = Bid(false, punkIndex, 0x0, 0);
+        punkBids[punkIndex] = Bid(false, punkIndex, address(0), 0);
         pendingWithdrawals[seller] += amount;
-        PunkBought(punkIndex, bid.value, seller, bid.bidder);
+        emit PunkBought(punkIndex, bid.value, seller, bid.bidder);
     }
 
-    function withdrawBidForPunk(uint punkIndex) {
-        if (punkIndex >= 10000) throw;
-        if (!allPunksAssigned) throw;                
-        if (punkIndexToAddress[punkIndex] == 0x0) throw;
-        if (punkIndexToAddress[punkIndex] == msg.sender) throw;
-        Bid bid = punkBids[punkIndex];
-        if (bid.bidder != msg.sender) throw;
-        PunkBidWithdrawn(punkIndex, bid.value, msg.sender);
+    function withdrawBidForPunk(uint punkIndex) public {
+        if (punkIndex >= 10000) revert();
+        if (!allPunksAssigned) revert();                
+        if (punkIndexToAddress[punkIndex] == address(0)) revert();
+        if (punkIndexToAddress[punkIndex] == msg.sender) revert();
+        Bid storage bid = punkBids[punkIndex];
+        if (bid.bidder != msg.sender) revert();
+        emit PunkBidWithdrawn(punkIndex, bid.value, msg.sender);
         uint amount = bid.value;
-        punkBids[punkIndex] = Bid(false, punkIndex, 0x0, 0);
+        punkBids[punkIndex] = Bid(false, punkIndex, address(0), 0);
         // Refund the bid money
         msg.sender.transfer(amount);
     }
